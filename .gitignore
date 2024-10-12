@@ -129,6 +129,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+anime_irl_ENV/
 
 # Spyder project settings
 .spyderproject
