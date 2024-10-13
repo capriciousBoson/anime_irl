@@ -53,7 +53,43 @@ class ITTRGenerator(nn.Module):
         
         # Final convolutional layer to return the image
         self.final_conv = nn.Conv2d(in_channels=img_dim, out_channels=3, kernel_size=3, padding=1)
+
+        # DECODER
+        self.deocder_layer1 = nn.Sequential(
+            nn.Conv2d(512, 256, kernel_size=3, padding=1),  # Output channels: 128
+            nn.InstanceNorm2d(256),
+            nn.GELU()
+        )
+        
+        # Layer 2: Upsample
+        self.deocder_upsample1 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)  # 32 -> 64
+        
+        # Layer 3: 3x3 Conv -> IN -> GELU
+        self.deocder_layer2 = nn.Sequential(
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),  # Output channels: 128
+            nn.InstanceNorm2d(256),
+            nn.GELU()
+        )
+        
+        # Layer 4: Upsample
+        self.deocder_upsample2 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)  # 64 -> 128
+        
+        # Layer 5: 3x3 Conv -> IN -> GELU
+        self.deocder_layer3 = nn.Sequential(
+            nn.Conv2d(256, 128, kernel_size=3, padding=1),  # Output channels: 256
+            nn.InstanceNorm2d(128),
+            nn.GELU()
+        )
+        
+        # Layer 6: Upsample
+        self.deocder_upsample3 = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)  # 128 -> 256
+        
+        # Layer 7: 7x7 Conv
+        self.deocder_layer4 = nn.Conv2d(128, 3, kernel_size=7, padding=3)  # Output channels: 3
+
+        # Final activation layer: Tanh
         self.tanh = nn.Tanh()
+
 
     def forward(self, x):
         # Pass through the HPB blocks
@@ -69,8 +105,19 @@ class ITTRGenerator(nn.Module):
 
         # print(f"shape of output after dpsa blocks : {x.shape} -----------")
         # Final image generation
-        x = self.final_conv(x)
-        print(f"shape of output after final conv layer : {x.shape} -----------")
+        x = self.deocder_layer1(x)                 # Shape: (B, 128, 32, 32)
+        x = self.deocder_upsample1(x)              # Shape: (B, 128, 64, 64)
+        x = self.deocder_layer2(x)                 # Shape: (B, 128, 64, 64)
+        x = self.deocder_upsample2(x)              # Shape: (B, 128, 128, 128)
+        x = self.deocder_layer3(x)                 # Shape: (B, 256, 128, 128)
+        x = self.deocder_upsample3(x)              # Shape: (B, 256, 256, 256)
+        x = self.deocder_layer4(x)                 # Shape: (B, 3, 256, 256)
+        x = self.tanh(x)  
 
-        return self.tanh(x)
+        
+
+        # x = self.final_conv(x)
+        print(f"shape of encoder output after final layer : {x.shape} -----------")
+
+        return x
 
