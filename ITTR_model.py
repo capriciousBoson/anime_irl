@@ -9,6 +9,8 @@ class ITTRGenerator(nn.Module):
         super(ITTRGenerator, self).__init__()
         
         self.num_blocks = num_blocks
+        # Add a convolutional layer to change input from 3 channels (RGB) to 512
+        self.conv_in = nn.Conv2d(in_channels=3, out_channels=512, kernel_size=3, stride=1, padding=1)
         
         # Create the series of HPB blocks
         self.hpb_blocks = nn.ModuleList([
@@ -41,6 +43,7 @@ class ITTRGenerator(nn.Module):
 
     def forward(self, x):
         # Pass through the HPB blocks
+        x = self.conv_in(x)
         for block in self.hpb_blocks:
             x = block(x)
         
