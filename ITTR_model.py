@@ -93,13 +93,13 @@ class ITTRGenerator(nn.Module):
 
     def forward(self, x):
         # Pass through the HPB blocks
-        print(f"shape of input at forward : {x.shape} -------------")
+        # print(f"shape of input at forward : {x.shape} -------------")
         x = self.conv_layers(x)
-        print(f"shape of output after conv2d layers : {x.shape} -------------")
+        # print(f"shape of output after conv2d layers : {x.shape} -------------")
         for block in self.hpb_blocks:
             x = block(x)
         
-        print(f"shape of output after hpb blocks : {x.shape} -----------")
+        # print(f"shape of output after hpb blocks : {x.shape} -----------")
         # Final pass through the DPSA block
         # x = self.dpsa(x)
 
@@ -117,7 +117,7 @@ class ITTRGenerator(nn.Module):
         
 
         # x = self.final_conv(x)
-        print(f"shape of encoder output after final layer : {x.shape} -----------")
+        # print(f"shape of encoder output after final layer : {x.shape} -----------")
 
         return x
 

@@ -40,7 +40,7 @@ def cycle_consistency_loss(generator, fake_photo, real_anime):
     return l1_loss(reconstructed_anime, real_anime)
 
 # Function to save model checkpoints
-def save_checkpoint(epoch, model, optimizer, loss, file_name="checkpoint.pth"):
+def save_checkpoint(epoch, model, optimizer, loss):
     checkpoint = {
         'epoch': epoch,
         'model_state_dict': model.state_dict(),
@@ -49,6 +49,7 @@ def save_checkpoint(epoch, model, optimizer, loss, file_name="checkpoint.pth"):
     }
     if not os.path.exists(checkpoint_dir):
         os.makedirs(checkpoint_dir)
+    file_name = f"ITTR_checkpoint_epoch_{epoch}.pth"
     torch.save(checkpoint, os.path.join(checkpoint_dir, file_name))
     print(f"Checkpoint saved at epoch {epoch}")
 
