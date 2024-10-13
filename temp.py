@@ -2,6 +2,22 @@ import streamlit as st
 from PIL import Image
 import numpy as np
 import cv2  # For any OpenCV processing (optional)  
+from streamlit_option_menu import option_menu
+
+selected = option_menu(
+    menu_title = "Image Processing",
+    options = ["Process Image", "Anime IRL"],
+    default_index =0,
+    orientation = "horizontal",
+)
+
+if selected == "Process Image":
+    st.title("Image processing")
+if selected == "Anime IRL":
+    st.title("Anime IRL")
+
+
+
 
 
 # Load your AI model here (e.g., using TensorFlow or PyTorch)
