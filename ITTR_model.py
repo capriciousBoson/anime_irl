@@ -42,14 +42,14 @@ class ITTRGenerator(nn.Module):
         ])
         
         # Final Dual Pruned Self-Attention (DPSA) layer
-        self.dpsa = DPSA(
-            dim=img_dim,          # input dimension of the image
-            dim_head=dim_head,    # dimension per attention head
-            heads=heads,          # number of attention heads
-            height_top_k=top_k * 3,  # more top indices for final refinement
-            width_top_k=top_k * 3,   # more top indices for final refinement
-            dropout=0.            # dropout
-        )
+        # self.dpsa = DPSA(
+        #     dim=img_dim,          # input dimension of the image
+        #     dim_head=dim_head,    # dimension per attention head
+        #     heads=heads,          # number of attention heads
+        #     height_top_k=top_k * 3,  # more top indices for final refinement
+        #     width_top_k=top_k * 3,   # more top indices for final refinement
+        #     dropout=0.            # dropout
+        # )
         
         # Final convolutional layer to return the image
         self.final_conv = nn.Conv2d(in_channels=img_dim, out_channels=3, kernel_size=3, padding=1)
@@ -65,9 +65,9 @@ class ITTRGenerator(nn.Module):
         
         print(f"shape of output after hpb blocks : {x.shape} -----------")
         # Final pass through the DPSA block
-        x = self.dpsa(x)
+        # x = self.dpsa(x)
 
-        print(f"shape of output after dpsa blocks : {x.shape} -----------")
+        # print(f"shape of output after dpsa blocks : {x.shape} -----------")
         # Final image generation
         x = self.final_conv(x)
         print(f"shape of output after final conv layer : {x.shape} -----------")
