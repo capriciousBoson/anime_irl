@@ -60,6 +60,6 @@ def generate_image(input_image_path, output_image_path, model_weights_path, devi
 
 # Example usage
 input_image_path = 'Dataset/testA/frame_6740_0.png'
-output_image_path = 'output'
+output_image_path = 'output/output_img.png'
 saved_model = 'ITTR_checkpoint_epoch_20.pth'
 generate_image(input_image_path, output_image_path, saved_model)
