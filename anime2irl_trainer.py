@@ -102,7 +102,9 @@ def train(generator, dataloader, optimizer, num_epochs):
         total_loss = 0.0
         
         for batch in dataloader:
-            real_anime, real_photo = batch['anime'].to(device), batch['photo'].to(device)
+            real_anime, real_photo = batch  # Assuming the Dataset returns a tuple of (anime_image, photo_image)
+            
+            real_anime, real_photo = real_anime.to(device), real_photo.to(device)
             
             # Generate fake photorealistic images from anime images
             fake_photo = generator(real_anime)
@@ -147,7 +149,7 @@ if __name__ == "__main__":
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize for Tanh
     ])
-    dataset = CustomDataset('Dataset\trainA', 'Dataset\trainB', custom_transforms)
+    dataset = CustomDataset('Dataset/trainA', 'Dataset/trainB', custom_transforms)
     
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     
