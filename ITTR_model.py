@@ -10,7 +10,21 @@ class ITTRGenerator(nn.Module):
         
         self.num_blocks = num_blocks
         # Add a convolutional layer to change input from 3 channels (RGB) to 512
-        self.conv_in = nn.Conv2d(in_channels=3, out_channels=512, kernel_size=3, stride=1, padding=1)
+       
+        self.conv_layers = nn.Sequential(
+            # 7x7 Convolution, Instance Norm, GELU
+            nn.Conv2d(in_channels=3, out_channels=64, kernel_size=7, stride=2, padding=3),  # Output: (batch_size, 64, 128, 128)
+            nn.InstanceNorm2d(64),
+            nn.GELU(),
+
+            # 3x3 Convolution, stride=2, Instance Norm, GELU
+            nn.Conv2d(in_channels=64, out_channels=256, kernel_size=3, stride=2, padding=1),  # Output: (batch_size, 256, 64, 64)
+            nn.InstanceNorm2d(256),
+            nn.GELU(),
+
+            # 3x3 Convolution, stride=2, Instance Norm, GELU
+            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=2, padding=1)  # Output: (batch_size, 512, 32, 32)
+            )
         
         # Create the series of HPB blocks
         self.hpb_blocks = nn.ModuleList([
@@ -43,14 +57,20 @@ class ITTRGenerator(nn.Module):
 
     def forward(self, x):
         # Pass through the HPB blocks
-        x = self.conv_in(x)
+        print(f"shape of input at forward : {x.shape} -------------")
+        x = self.conv_layers(x)
+        print(f"shape of output after conv2d layers : {x.shape} -------------")
         for block in self.hpb_blocks:
             x = block(x)
         
+        print(f"shape of output after hpb blocks : {x.shape} -----------")
         # Final pass through the DPSA block
         x = self.dpsa(x)
-        
+
+        print(f"shape of output after dpsa blocks : {x.shape} -----------")
         # Final image generation
         x = self.final_conv(x)
+        print(f"shape of output after final conv layer : {x.shape} -----------")
+
         return self.tanh(x)
 

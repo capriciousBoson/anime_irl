@@ -106,6 +106,11 @@ def train(generator, dataloader, optimizer, num_epochs):
             
             real_anime, real_photo = real_anime.to(device), real_photo.to(device)
             
+            # Ensure the input is in the expected format, i.e., 3 channels (RGB)
+            assert real_anime.shape[1] == 3, "Input anime images must have 3 channels (RGB)"
+            assert real_photo.shape[1] == 3, "Input photo images must have 3 channels (RGB)"
+                        
+
             # Generate fake photorealistic images from anime images
             fake_photo = generator(real_anime)
             
