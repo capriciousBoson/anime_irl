@@ -7,6 +7,8 @@ from torchvision import transforms
 from ITTR_model import ITTRGenerator  # Import the generator class
 from CustomDataset import CustomDataset  # Assuming this is the custom dataset you already have
 from torch.utils.data import DataLoader
+from PIL import Image
+import torchvision.utils as vutils
 
 # Training parameters
 lr = 0.0002
@@ -63,6 +65,33 @@ def load_checkpoint(model, optimizer, file_name="checkpoint.pth"):
         print("No checkpoint found, starting training from scratch")
         return 0, float('inf')  # Start from scratch if no checkpoint exists
 
+# Function to generate outputs for test images and save them
+def generate_and_save_test_outputs(generator, epoch,test_dir,checkpoint_output_dir):
+    if not os.path.exists(checkpoint_output_dir):
+        os.makedirs(checkpoint_output_dir)
+    
+    transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize for Tanh
+    ])
+    
+    for file in os.listdir(test_dir):
+        if file.endswith(('.png', '.jpg', '.jpeg')):
+            img_path = os.path.join(test_dir, file)
+            image = Image.open(img_path).convert('RGB')
+            input_tensor = transform(image).unsqueeze(0).to(device)  # Add batch dimension
+            
+            # Generate output
+            generator.eval()  # Set generator to evaluation mode
+            with torch.no_grad():
+                generated_image = generator(input_tensor)
+            
+            # Save output image
+            output_image_path = os.path.join(checkpoint_output_dir, f"{file.split('.')[0]}_epoch_{epoch}.png")
+            vutils.save_image(generated_image, output_image_path, normalize=True)
+            print(f"Generated output saved for {file} at epoch {epoch}")
+
 # Training loop
 def train(generator, dataloader, optimizer, num_epochs):
     generator.train()
@@ -98,8 +127,11 @@ def train(generator, dataloader, optimizer, num_epochs):
         print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {total_loss.item()}")
 
         # Save checkpoint every 10 epochs
+        test_dir = 'Dataset\testA'
+        checkpoint_output_dir = 'output'
         if (epoch + 1) % 10 == 0:
             save_checkpoint(epoch + 1, generator, optimizer, total_loss.item())
+            generate_and_save_test_outputs(generator, epoch + 1,test_dir,checkpoint_output_dir)
 
 # Main function
 if __name__ == "__main__":
