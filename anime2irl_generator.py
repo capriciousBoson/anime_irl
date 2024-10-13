@@ -46,7 +46,10 @@ def generate_image(input_image_path, output_image_path, model_weights_path, devi
     output_image = transforms.ToPILImage()(output_tensor)
 
     # Stack the test and generated images horizontally
+    # Create an image large enough to contain both input and output images
     combined_image = Image.new('RGB', (input_image.width + output_image.width, input_image.height))
+    
+    # Paste input image on the left and output image on the right
     combined_image.paste(input_image, (0, 0))
     combined_image.paste(output_image, (input_image.width, 0))
     
@@ -54,12 +57,12 @@ def generate_image(input_image_path, output_image_path, model_weights_path, devi
     combined_image.save(output_image_path)
     
     # Optionally display the generated image
-    plt.imshow(combined_image)
+    plt.imshow(output_image)
     plt.axis('off')
     plt.show()
 
 # Example usage
-input_image_path = 'Dataset/testA/frame_6740_0.png'
+input_image_path = 'Dataset/testA/frame_25380_0.png'
 output_image_path = 'output/output_img.png'
-saved_model = 'ITTR_checkpoint_epoch_20.pth'
+saved_model = 'ITTR_checkpoint_epoch_40.pth'
 generate_image(input_image_path, output_image_path, saved_model)
