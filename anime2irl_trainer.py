@@ -9,6 +9,8 @@ from CustomDataset import CustomDataset  # Assuming this is the custom dataset y
 from torch.utils.data import DataLoader
 from PIL import Image
 import torchvision.utils as vutils
+from tqdm.auto import tqdm
+from modelCheckpointing import save_input_output_images, show_tensor_images
 
 # Training parameters
 lr = 0.0002
@@ -101,7 +103,7 @@ def train(generator, dataloader, optimizer, num_epochs):
     for epoch in range(start_epoch, num_epochs):
         total_loss = 0.0
         
-        for batch in dataloader:
+        for batch in tqdm(dataloader):
             real_anime, real_photo = batch  # Assuming the Dataset returns a tuple of (anime_image, photo_image)
             
             real_anime, real_photo = real_anime.to(device), real_photo.to(device)
