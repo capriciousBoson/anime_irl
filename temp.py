@@ -3,6 +3,7 @@ from PIL import Image
 import numpy as np
 import cv2  # For any OpenCV processing (optional)  
 from streamlit_option_menu import option_menu
+from io import BytesIO
 
 selected = option_menu(
     menu_title = "Image Processing",
@@ -49,3 +50,12 @@ if uploaded_file is not None:
 
     # Display the processed image
     st.image(processed_image, caption="Processed Image", use_column_width=True)
+
+    # Optional: Add a download button for the processed image
+    if processed_image is not None:
+        output_buffer = BytesIO()
+        processed_image.save(output_buffer, format="PNG")
+        output_buffer.seek(0)
+        st.download_button("Download Processed Image", data=output_buffer, file_name="processed_image.png", mime="image/png")
+
+    
