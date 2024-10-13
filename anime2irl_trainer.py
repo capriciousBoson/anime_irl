@@ -1,128 +1,123 @@
-import argparse
-import time
 import os
 import torch
-import torchvision.utils as vutils
-from CustomDataset import CustomDataset  # Importing the CustomDataset class
+import torch.nn as nn
+import torch.optim as optim
+from torchvision.models import vgg16
 from torchvision import transforms
-import sys
+from ITTR_model import ITTRGenerator  # Import the generator class
+from CustomDataset import CustomDataset  # Assuming this is the custom dataset you already have
+from torch.utils.data import DataLoader
 
-# Define a function to save model checkpoints
-def save_checkpoint(model, optimizer, epoch, loss, filename):
+# Training parameters
+lr = 0.0002
+betas = (0.5, 0.999)
+batch_size = 8
+num_epochs = 20
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+checkpoint_dir = './checkpoints'  # Directory to save checkpoints
+
+# Loss functions
+l1_loss = nn.L1Loss()
+
+# VGG Perceptual loss function
+vgg = vgg16(pretrained=True).features[:16].eval().to(device)
+for param in vgg.parameters():
+    param.requires_grad = False
+
+# Function for perceptual loss
+def perceptual_loss(vgg, gen_image, real_image):
+    gen_features = vgg(gen_image)
+    real_features = vgg(real_image)
+    return l1_loss(gen_features, real_features)
+
+# Function for cycle consistency loss
+def cycle_consistency_loss(generator, fake_photo, real_anime):
+    reconstructed_anime = generator(fake_photo)
+    return l1_loss(reconstructed_anime, real_anime)
+
+# Function to save model checkpoints
+def save_checkpoint(epoch, model, optimizer, loss, file_name="checkpoint.pth"):
     checkpoint = {
+        'epoch': epoch,
         'model_state_dict': model.state_dict(),
         'optimizer_state_dict': optimizer.state_dict(),
-        'epoch': epoch,
-        'loss': loss
+        'loss': loss,
     }
-    torch.save(checkpoint, filename)
+    if not os.path.exists(checkpoint_dir):
+        os.makedirs(checkpoint_dir)
+    torch.save(checkpoint, os.path.join(checkpoint_dir, file_name))
+    print(f"Checkpoint saved at epoch {epoch}")
 
-# Define a function to load model checkpoints
-def load_checkpoint(model, optimizer, filename):
-    checkpoint = torch.load(filename)
-    model.load_state_dict(checkpoint['model_state_dict'])
-    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-    start_epoch = checkpoint['epoch']
-    return start_epoch, checkpoint['loss']
-
-# Define a function to generate and save images
-def generate_and_save_images(model, dataloader, epoch, save_dir):
-    model.eval()  # Set the model to evaluation mode
-    with torch.no_grad():
-        for anime_images, _ in dataloader:
-            # Generate images
-            generated_images = model(anime_images)
-            # Create a grid of images
-            grid = vutils.make_grid(generated_images, nrow=4, normalize=True)
-            # Save the generated image grid
-            vutils.save_image(grid, os.path.join(save_dir, f'generated_epoch_{epoch}.png'))
-            break  # Just generate one batch for visualization
-
-# Define the training method
-def train(ittr_model, optimizer, criterion, dataloader, resume, num_epochs=10, checkpoint_interval=5, max_training_time=3600):
-    # Directory to save generated images and model checkpoints
-    os.makedirs('checkpoints', exist_ok=True)
-    os.makedirs('generated_images', exist_ok=True)
-
-    # Load from a checkpoint if requested
-    checkpoint_path = 'checkpoints/model_epoch_last.pth'
-    start_epoch = 0
-
-    if resume and os.path.exists(checkpoint_path):
-        start_epoch, _ = load_checkpoint(ittr_model, optimizer, checkpoint_path)
-        print(f'Resuming training from epoch {start_epoch + 1}')
+# Function to load model checkpoints if available
+def load_checkpoint(model, optimizer, file_name="checkpoint.pth"):
+    checkpoint_path = os.path.join(checkpoint_dir, file_name)
+    if os.path.exists(checkpoint_path):
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        start_epoch = checkpoint['epoch']
+        loss = checkpoint['loss']
+        print(f"Checkpoint loaded: starting from epoch {start_epoch}, loss: {loss}")
+        return start_epoch, loss
     else:
-        print('Starting training from scratch.')
+        print("No checkpoint found, starting training from scratch")
+        return 0, float('inf')  # Start from scratch if no checkpoint exists
 
-    # Start training timer
-    start_time = time.time()
+# Training loop
+def train(generator, dataloader, optimizer, num_epochs):
+    generator.train()
+
+    start_epoch, prev_loss = load_checkpoint(generator, optimizer)
 
     for epoch in range(start_epoch, num_epochs):
-        ittr_model.train()  # Set the model to training mode
-        for anime_images, real_images in dataloader:
+        total_loss = 0.0
+        
+        for batch in dataloader:
+            real_anime, real_photo = batch['anime'].to(device), batch['photo'].to(device)
+            
+            # Generate fake photorealistic images from anime images
+            fake_photo = generator(real_anime)
+            
+            # Calculate L1 pixel loss
+            pixel_loss = l1_loss(fake_photo, real_photo)
+            
+            # Perceptual loss
+            vgg_loss = perceptual_loss(vgg, fake_photo, real_photo)
+            
+            # Cycle consistency loss
+            cycle_loss = cycle_consistency_loss(generator, fake_photo, real_anime)
+            
+            # Total loss
+            total_loss = pixel_loss + 0.1 * vgg_loss + 10 * cycle_loss  # Adjust weights as necessary
+            
+            # Backpropagation
             optimizer.zero_grad()
-
-            # Forward pass
-            outputs = ittr_model(anime_images)
-
-            # Compute loss
-            loss = criterion(outputs, real_images)
-
-            # Backward pass and optimization
-            loss.backward()
+            total_loss.backward()
             optimizer.step()
 
-        print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
+        print(f"Epoch [{epoch + 1}/{num_epochs}], Loss: {total_loss.item()}")
 
-        # Save the model checkpoint every checkpoint_interval epochs
-        if (epoch + 1) % checkpoint_interval == 0:
-            checkpoint_filename = f'checkpoints/model_epoch_{epoch + 1}.pth'
-            save_checkpoint(ittr_model, optimizer, epoch + 1, loss.item(), checkpoint_filename)
-            print(f'Model checkpoint saved: {checkpoint_filename}')
+        # Save checkpoint every 10 epochs
+        if (epoch + 1) % 10 == 0:
+            save_checkpoint(epoch + 1, generator, optimizer, total_loss.item())
 
-            # Generate and save images after checkpointing
-            generate_and_save_images(ittr_model, dataloader, epoch + 1, 'generated_images')
-            print(f'Generated images saved for epoch {epoch + 1}')
-
-        # Check if the maximum training time has been reached
-        if time.time() - start_time > max_training_time:
-            print("Maximum training time reached. Stopping training.")
-            break
-
-    # Save the last checkpoint at the end of training
-    save_checkpoint(ittr_model, optimizer, epoch + 1, loss.item(), 'checkpoints/model_epoch_last.pth')
-    print("Last checkpoint saved for resuming future training.")
-
-# Define the main function
-def main():
-    # Argument parser setup
-    # parser = argparse.ArgumentParser(description='Train ITTR model for image translation.')
-    # parser.add_argument('--resume', action='store_true', help='Resume training from the last checkpoint')
-    # parser.add_argument('--anime_dir', type=str, required=True, help='Directory of anime images')
-    # parser.add_argument('--real_dir', type=str, required=True, help='Directory of real images')
-    # args = parser.parse_args()
-
-    Resume = sys.argv[1]
-
+# Main function
+if __name__ == "__main__":
+    # Initialize the generator
+    generator = ITTRGenerator().to(device)
+    
+    # Optimizer
+    optimizer = optim.Adam(generator.parameters(), lr=lr, betas=betas)
+    
     # Dataset and DataLoader
-    transform = transforms.Compose([
+    custom_transforms = transforms.Compose([
         transforms.Resize((256, 256)),
         transforms.ToTensor(),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])  # Normalize for Tanh
     ])
-
-    anime_dir = 'Dataset\testA'
-    real_dir = 'Dataset\testB'
-
-    dataset = CustomDataset(anime_dir, real_dir, transform)
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=16, shuffle=True)
-
-    # Initialize model, optimizer, and loss criterion
-    ittr_model = ...  # Initialize your ITTR model here
-    optimizer = torch.optim.Adam(ittr_model.parameters(), lr=1e-4)
-    criterion = ...  # Define your loss function here
-
+    dataset = CustomDataset('Dataset\trainA', 'Dataset\trainB', custom_transforms)
+    
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    
     # Start training
-    train(ittr_model, optimizer, criterion, dataloader, Resume)
-
-if __name__ == '__main__':
-    main()
+    train(generator, dataloader, optimizer, num_epochs)

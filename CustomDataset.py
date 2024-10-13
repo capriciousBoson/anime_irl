@@ -2,7 +2,6 @@ import os
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 
-
 class CustomDataset(Dataset):
     def __init__(self, anime_dir, real_dir, transform=None):
         self.anime_images = os.listdir(anime_dir)
